@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+#
+# bin/ripper-collector-exec — self-locating wrapper around the venv Python.
+#
+# Usage:
+#   <path>/bin/ripper-collector-exec orchestration document-map design.md
+#   <path>/bin/ripper-collector-exec orchestration repository-map ./source
+#   <path>/bin/ripper-collector-exec orchestration deposit-project Project --analysis analysis.json --source design.md
+#
+# This wrapper solves two problems at once:
+#
+# 1. It locates SKILL_ROOT by following its own path (no search, no env var
+#    needed). Callers only need to know the wrapper's path.
+#
+# 2. It execs the venv Python with the right script path, so callers don't
+#    have to worry about which Python is on PATH or how Python's module
+#    system resolves the `scripts` package.
+#
+# SKILL.md still needs to discover the wrapper's path once per Bash tool call
+# (shell state doesn't persist between calls — a separate problem), but that
+# discovery is a one-line prologue rather than a multi-variable setup block.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SKILL_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Locate the Python runtime. Search order:
+#   0. $RIPPER_COLLECTOR_PYTHON — explicit executable override (tests/CI)
+#   1. $RIPPER_COLLECTOR_VENV/bin/python — explicit override (sandbox / CI / custom)
+#   2. ~/.venv-ripper-collector-sandbox/bin/python — sandbox-vs-host coordination
+#      convention (a Linux Docker sandbox sharing the FS with a macOS host
+#      cannot reuse the host's .venv; it builds its own venv in HOME instead
+#      so the two never collide).
+#   3. $SKILL_ROOT/.venv/bin/python — POSIX host install (the default
+#      install.sh creates this).
+#   4. $SKILL_ROOT/.venv/Scripts/python.exe — Windows CPython venv layout
+#      (Git Bash / MINGW64 — install.sh detects and uses this on Windows).
+VENV_PY=""
+if [ -n "${RIPPER_COLLECTOR_PYTHON:-}" ] && [ -x "$RIPPER_COLLECTOR_PYTHON" ]; then
+  VENV_PY="$RIPPER_COLLECTOR_PYTHON"
+fi
+for CANDIDATE in \
+    "${RIPPER_COLLECTOR_VENV:-}/bin/python" \
+    "${HOME}/.venv-ripper-collector-sandbox/bin/python" \
+    "$SKILL_ROOT/.venv/bin/python" \
+    "$SKILL_ROOT/.venv/Scripts/python.exe"; do
+  # Skip the empty $RIPPER_COLLECTOR_VENV case (becomes "/bin/python" if unset).
+  case "$CANDIDATE" in
+    /bin/python) continue ;;
+  esac
+  if [ -n "$VENV_PY" ]; then
+    break
+  fi
+  if [ -x "$CANDIDATE" ]; then
+    VENV_PY="$CANDIDATE"
+    break
+  fi
+done
+
+if [ -z "$VENV_PY" ]; then
+  cat >&2 <<EOF
+ERROR: ripper-collector venv Python not found. Searched:
+  $RIPPER_COLLECTOR_PYTHON   (explicit executable override; currently: '${RIPPER_COLLECTOR_PYTHON:-unset}')
+  \$RIPPER_COLLECTOR_VENV/bin/python   (override; currently: '${RIPPER_COLLECTOR_VENV:-unset}')
+  ~/.venv-ripper-collector-sandbox/bin/python   (sandbox-vs-host convention)
+  $SKILL_ROOT/.venv/bin/python   (POSIX host install)
+  $SKILL_ROOT/.venv/Scripts/python.exe   (Windows host install)
+
+If you are running on the host, run the installer:
+  bash $SKILL_ROOT/install.sh
+
+If you are in a sandbox / Docker container, run the bootstrap:
+  bash $SKILL_ROOT/tools/bootstrap-sandbox-venv.sh
+
+EOF
+  exit 1
+fi
+
+if [ $# -lt 1 ]; then
+  cat >&2 <<EOF
+Usage: $(basename "$0") <module> [args...]
+
+Modules:
+  ripper          — unified deposit, confirmation, browse, export and recovery
+  orchestration   — project document/source mapping, profiles, deposit and listing
+  render_pdf      — legacy markdown-to-PDF utility (not part of deposit)
+  github_mine     — legacy GitHub profile utility (not part of deposit)
+  telemetry       — user-facing analytics controls (status, export, delete, set-tier)
+
+Examples:
+  $(basename "$0") orchestration document-map design.md
+  $(basename "$0") orchestration list-archives
+  $(basename "$0") telemetry status
+EOF
+  exit 2
+fi
+
+MODULE="$1"; shift
+case "$MODULE" in
+  ripper)
+    exec "$VENV_PY" "$SKILL_ROOT/../ripper/scripts/ripper.py" "$@"
+    ;;
+  orchestration|render_pdf|github_mine)
+    exec "$VENV_PY" "$SKILL_ROOT/scripts/${MODULE}.py" "$@"
+    ;;
+  telemetry)
+    exec "$SKILL_ROOT/bin/ripper-collector-telemetry-cli" "$@"
+    ;;
+  *)
+    echo "Unknown module: $MODULE" >&2
+    echo "Known modules: ripper, orchestration, render_pdf, github_mine, telemetry" >&2
+    exit 2
+    ;;
+esac

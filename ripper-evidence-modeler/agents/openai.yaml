@@ -1,0 +1,4 @@
+interface:
+  display_name: "Ripper Evidence Modeler"
+  short_description: "Model project evidence, reconstructions, and domain enhancements"
+  default_prompt: "Use $ripper-evidence-modeler to analyze my submitted project materials, preserve all supported results, infer the project direction without job-search inputs, and model source-backed reconstruction candidates."

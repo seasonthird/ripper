@@ -1,0 +1,4 @@
+interface:
+  display_name: "Ripper CV"
+  short_description: "Generate resumes from accumulated Ripper assets"
+  default_prompt: "Use $ripper-cv to generate a targeted resume from my Ripper assets."

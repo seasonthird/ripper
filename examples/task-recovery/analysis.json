@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "project_name": "Fictional Task Recovery",
+  "claims": [
+    {
+      "id": "claim_demo_task_recovery",
+      "identity_key": "demo-task-recovery",
+      "title": "Persistent task recovery design",
+      "statement": "The fictional project document proposes persisted task state, bounded retry and heartbeat lease recovery.",
+      "status": "confirmed",
+      "realization_status": "designed",
+      "production_status": "not-verified",
+      "disclosure_level": "public",
+      "capabilities": [
+        "reliability",
+        "workflow-orchestration"
+      ],
+      "source_refs": [
+        {
+          "path": "examples/task-recovery/project.md",
+          "claim": "Documents a proposal, not an implementation."
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "doc",
+          "claim_text": "The source explicitly identifies itself as a fictional design.",
+          "confidence": "confirmed"
+        }
+      ],
+      "confirmations": [
+        {
+          "question": "Was this deployed to production?",
+          "status": "open"
+        }
+      ],
+      "metrics": [],
+      "narrative_unit": {
+        "situation": "Tasks may fail while executing dependencies.",
+        "task": "Propose a recovery design.",
+        "actions": "Persist state and use bounded retry, idempotency keys and worker leases.",
+        "verified_results": "Design described; implementation and production impact are not established.",
+        "status": "draft"
+      }
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+.DS_Store
+.idea/
+.vscode/
+
+.env
+.env.*
+*.log
+
+tmp/
+temp/
+outputs/
+dist/
+
+*.bak
+*.tmp

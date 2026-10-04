@@ -1,0 +1,41 @@
+# Private runtime state and historical local snapshots
+/ripper-output/
+/zip_backup/
+/dist/
+/.myflicker/
+/.codeflicker/
+/.codex/
+/.claude/
+/.gstack/
+
+# Environments, caches and OS metadata
+.venv/
+.venv-*/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+.DS_Store
+Thumbs.db
+
+# Credentials and machine-local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Nested upstream repository administration is provenance, not Ripper settings
+/ripper-collector/.github/
+/ripper-cv/.github/
+/ripper-evidence-modeler/.github/
+
+# Historical marketing/demo media are not part of the public product
+/ripper-cv/demo-output.png
+/ripper-collector/assets/img/
+/ripper-evidence-modeler/assets/readme/

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Ripper Collector"
+  short_description: "Deposit project documents and source into Ripper"
+  default_prompt: "Use $ripper-collector to analyze and deposit my submitted project materials without using job-search context."

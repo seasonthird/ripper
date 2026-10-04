@@ -1,0 +1,117 @@
+#!/usr/bin/env bash
+# ripper-collector-telemetry-sync — POST unsent JSONL events to the edge function.
+#
+# Called synchronously by ripper-collector-telemetry-log after each event write.
+# No rate limit, no backgrounding: a ripper-collector run takes minutes, so the
+# ~100-500ms round-trip per event is negligible and we trade latency for
+# guaranteed delivery. Cursor tracks the last synced line so re-runs don't
+# duplicate. Batches up to 100 events per POST (useful when a previous run
+# was offline and left queued events behind).
+#
+# Env overrides (for tests):
+#   RIPPER_COLLECTOR_STATE_DIR         — override ~/.ripper-collector
+#   RIPPER_COLLECTOR_DIR               — override auto-detected skill root
+#   RIPPER_COLLECTOR_SUPABASE_URL      — override URL (takes precedence over config.sh)
+#   RIPPER_COLLECTOR_SUPABASE_ANON_KEY — override anon key
+set -uo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+RIPPER_COLLECTOR_DIR="${RIPPER_COLLECTOR_DIR:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+
+# State-dir policy matches ripper-collector-telemetry-log: the installation scope
+# owns one visible Ripper state root, independent of the host product.
+if [ -n "${RIPPER_COLLECTOR_STATE_DIR:-}" ]; then
+  STATE_DIR="$RIPPER_COLLECTOR_STATE_DIR"
+else
+  RIPPER_ROOT="$(cd "$RIPPER_COLLECTOR_DIR/../../.." 2>/dev/null && pwd -P || echo "")"
+  STATE_DIR="$RIPPER_ROOT/ripper-output/ripper-collector"
+fi
+ANALYTICS_DIR="$STATE_DIR/analytics"
+JSONL_FILE="$ANALYTICS_DIR/skill-usage.jsonl"
+CURSOR_FILE="$ANALYTICS_DIR/.last-sync-line"
+
+# Source Supabase config unless env overrides are set
+if [ -z "${RIPPER_COLLECTOR_SUPABASE_URL:-}" ] && [ -f "$RIPPER_COLLECTOR_DIR/supabase/config.sh" ]; then
+  # shellcheck disable=SC1091
+  . "$RIPPER_COLLECTOR_DIR/supabase/config.sh"
+fi
+URL="${RIPPER_COLLECTOR_SUPABASE_URL:-}"
+KEY="${RIPPER_COLLECTOR_SUPABASE_ANON_KEY:-}"
+
+# ─── Pre-checks ─────────────────────────────────────────────
+[ -z "$URL" ] && exit 0
+[ -z "$KEY" ] && exit 0
+[ -f "$JSONL_FILE" ] || exit 0
+
+# ─── Cursor ─────────────────────────────────────────────────
+CURSOR=0
+if [ -f "$CURSOR_FILE" ]; then
+  CURSOR="$(cat "$CURSOR_FILE" 2>/dev/null | tr -d ' \n\r\t')"
+  case "$CURSOR" in *[!0-9]*) CURSOR=0 ;; esac
+fi
+
+TOTAL_LINES="$(wc -l < "$JSONL_FILE" 2>/dev/null | tr -d ' \n\r\t')"
+[ -z "$TOTAL_LINES" ] && TOTAL_LINES=0
+
+# Safety: cursor past end? Reset.
+if [ "$CURSOR" -gt "$TOTAL_LINES" ] 2>/dev/null; then
+  CURSOR=0
+fi
+
+[ "$CURSOR" -ge "$TOTAL_LINES" ] 2>/dev/null && exit 0
+
+# ─── Read unsent lines ──────────────────────────────────────
+SKIP=$(( CURSOR + 1 ))
+UNSENT="$(tail -n "+$SKIP" "$JSONL_FILE" 2>/dev/null || true)"
+[ -z "$UNSENT" ] && exit 0
+
+# ─── Build batch (up to 100 events) ─────────────────────────
+BATCH="["
+FIRST=true
+COUNT=0
+
+while IFS= read -r LINE; do
+  [ -z "$LINE" ] && continue
+  # Must start with { to be a valid event
+  case "$LINE" in '{'*) : ;; *) continue ;; esac
+
+  # Strip local-only fields (keys starting with _)
+  CLEAN="$(echo "$LINE" | sed -E 's/,"_[a-zA-Z0-9_]+":"[^"]*"//g; s/,"_[a-zA-Z0-9_]+":[0-9.true false]+//g')"
+
+  if [ "$FIRST" = "true" ]; then
+    FIRST=false
+  else
+    BATCH="$BATCH,"
+  fi
+  BATCH="$BATCH$CLEAN"
+  COUNT=$(( COUNT + 1 ))
+
+  [ "$COUNT" -ge 100 ] && break
+done <<< "$UNSENT"
+
+BATCH="$BATCH]"
+[ "$COUNT" -eq 0 ] && exit 0
+
+# ─── POST ───────────────────────────────────────────────────
+RESP="$(mktemp /tmp/ripper-collector-sync-XXXXXX 2>/dev/null || echo "/tmp/ripper-collector-sync-$$")"
+HTTP="$(curl -s -o "$RESP" -w '%{http_code}' --max-time 10 \
+  -X POST "${URL}/functions/v1/telemetry-ingest" \
+  -H "Authorization: Bearer ${KEY}" \
+  -H "Content-Type: application/json" \
+  -d "$BATCH" 2>/dev/null || echo "000")"
+
+# ─── Advance cursor on 2xx ──────────────────────────────────
+case "$HTTP" in
+  2*)
+    # Only advance if at least one event was accepted by the edge function.
+    INSERTED="$(grep -o '"inserted":[0-9]*' "$RESP" 2>/dev/null | grep -o '[0-9]*' || echo "0")"
+    if [ "${INSERTED:-0}" -gt 0 ] 2>/dev/null; then
+      NEW_CURSOR=$(( CURSOR + COUNT ))
+      echo "$NEW_CURSOR" > "$CURSOR_FILE" 2>/dev/null || true
+    fi
+    ;;
+esac
+
+rm -f "$RESP" 2>/dev/null || true
+
+exit 0

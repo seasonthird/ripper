@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "project_id": "project_ripper-e2e-scheduler",
+  "project_name": "Ripper E2E Scheduler",
+  "claims": [
+    {
+      "id": "claim_dag-recovery",
+      "title": "DAG task recovery",
+      "statement": "The submitted document describes persisted task state, bounded retry, and heartbeat lease recovery.",
+      "status": "confirmed",
+      "realization_status": "implemented",
+      "production_status": "unknown",
+      "disclosure_level": "public",
+      "capabilities": ["workflow-orchestration", "reliability"],
+      "source_refs": [
+        {
+          "path": "project.md",
+          "line_start": 1,
+          "line_end": 6,
+          "claim": "Documents the scheduling and recovery mechanisms."
+        }
+      ],
+      "evidence": [
+        {
+          "kind": "doc",
+          "claim_text": "The project document states the mechanisms.",
+          "confidence": "confirmed"
+        }
+      ],
+      "related_tests": [],
+      "related_config": [],
+      "metrics": [],
+      "derived_optimizations": [],
+      "reconstruction": {},
+      "confirmations": [],
+      "narrative_unit": {
+        "situation": "Tasks require dependency-aware execution.",
+        "task": "Coordinate and recover task execution.",
+        "actions": "Persist state, bound retries, and use heartbeat leases.",
+        "verified_results": "Mechanisms are documented; production status is not verified.",
+        "status": "draft"
+      }
+    }
+  ]
+}

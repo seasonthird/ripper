@@ -1,0 +1,20 @@
+.venv/
+# Broadened to cover sibling sandbox / per-platform venvs in the project
+# tree. The canonical sandbox venv lives at $HOME/.venv-ripper-collector-sandbox/
+# (outside the project tree, so not matched by this).
+# See CLAUDE.md "Sandbox vs host venv coordination".
+.venv-*/
+__pycache__/
+*.pyc
+.pytest_cache/
+`ripper-output/ripper-collector/`
+`ripper-output/ripper-collector/applications/`
+examples/
+.gstack/
+.context/
+internal_notes/
+trace_comparison/
+pr*_samples/
+*.egg-info/
+.DS_Store
+samples-issue42/

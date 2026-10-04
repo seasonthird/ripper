@@ -1,0 +1,39 @@
+name: Ripper CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            python: '3.10'
+          - os: ubuntu-latest
+            python: '3.12'
+          - os: macos-latest
+            python: '3.12'
+    runs-on: ${{ matrix.os }}
+    env:
+      RIPPER_COLLECTOR_SKIP_LIVE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: |
+            ripper-collector/requirements.txt
+            ripper-collector/requirements-dev.txt
+      - run: python -m pip install -r ripper-collector/requirements-dev.txt
+      - run: python -m pytest -q -m 'not live_llm'
+        working-directory: ripper-collector
+      - run: python tools/demo.py
+      - run: python tools/package_source.py

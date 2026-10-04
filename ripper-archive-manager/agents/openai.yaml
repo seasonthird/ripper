@@ -1,0 +1,4 @@
+interface:
+  display_name: "Ripper Archive Manager"
+  short_description: "Archive, deduplicate, update, and browse Ripper projects"
+  default_prompt: "Manage my Ripper project archives: preserve source files, analysis, domain profiles, and researched enhancement candidates; detect duplicate deposits, confirm updates, or list what I have already deposited."

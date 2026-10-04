@@ -1,0 +1,36 @@
+title: ripper-collector
+description: Optional Ripper Collector deployment site and telemetry dashboard. The active Collector flow deposits project evidence; this site is not required for local analysis or archiving.
+
+# Intentionally no theme: key. Custom _layouts/default.html + assets/css/style.css
+# render the optional dashboard with the product's visual language. The dashboard
+# is not part of the local-first deposit path and is disabled unless a deployment
+# owner supplies its own telemetry endpoint.
+
+# Use GitHub Pages' official plugins that process the site.
+plugins:
+  - jekyll-relative-links
+
+# Let jekyll-relative-links rewrite any relative .md links (though we've
+# already rewritten them to absolute github.com URLs for portability).
+relative_links:
+  enabled: true
+  collections: false
+
+# Exclude noise from the built site.
+exclude:
+  - scripts/
+  - tests/
+  - bin/
+  - GOLDEN_FIXTURES/
+  - docs/
+  - install.sh
+  - requirements.txt
+  - requirements-dev.txt
+  - conftest.py
+  - pytest.ini
+  - TODOS.md
+  - CHANGELOG.md
+  - trace_comparison/
+  - .venv/
+  - .gstack/
+  - .github/

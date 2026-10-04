@@ -18,6 +18,8 @@ A project's most useful details often disappear between the design document, the
 
 Deposit once. Return when you need an interview story, resume draft, promotion packet, yearly review, handover or technical blog outline.
 
+![图片说明](assets/1.png)
+
 ## What you get
 
 - **An engineering asset library.** Claims, source locations, capability tags, metrics and narrative units organized by project.
